@@ -13,18 +13,22 @@ void StartServer(const uint16_t port){
     try {
         net::io_context io_context;
         udp::socket socket(io_context, udp::endpoint(udp::v4(), port));
-        Player player(ma_format_u8, 1);
         for (;;) {
+            Player player(ma_format_u8, 1);
             std::array<char, max_buffer_size> recv_buf;
             udp::endpoint remote_endpoint;
 
             auto size = socket.receive_from(net::buffer(recv_buf), remote_endpoint);
+            if (size < 0) {
+                std::cerr << "Error receiving data" << std::endl;
+                continue;
+            }
+
 
             std::cout << "The record has been received "sv << std::endl;
 
             player.PlayBuffer(recv_buf.data(), size/player.GetFrameSize(), 1.5s);
             std::cout << "Playing done" << std::endl;
-
         }
 
     } catch (std::exception& e) {
@@ -38,8 +42,8 @@ void StartClient(uint16_t port){
         udp::socket socket(io_context, udp::v4());
 
         boost::system::error_code ec;
-        Recorder recorder(ma_format_u8, 1);
         while (true) {
+            Recorder recorder(ma_format_u8, 1);
             std::string str;
 
             std::cout << "Enter the IP address of the server: " << std::endl;
@@ -51,9 +55,13 @@ void StartClient(uint16_t port){
             std::getline(std::cin, str);
 
             auto rec_result = recorder.Record(max_buffer_size, 1.5s);
+            size_t bytes_recorded = rec_result.data.size();
+            size_t frame_size = recorder.GetFrameSize();
+            size_t total_bytes_recorded = bytes_recorded * frame_size;
+            std::string rec_buf(rec_result.data.begin(), rec_result.data.end());
             std::cout << "Recording done" << std::endl;
 
-            socket.send_to(net::buffer(rec_result.data, rec_result.frames), endpoint);
+            socket.send_to(net::buffer(rec_buf), endpoint);
         }
 
     } catch (std::exception& e) {
