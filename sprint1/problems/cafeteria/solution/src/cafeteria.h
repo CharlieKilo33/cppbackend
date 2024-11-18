@@ -77,8 +77,6 @@ class Order : public std::enable_shared_from_this<Order> {
     int id_;
     HotDogHandler hot_dog_handler_;
     Logger logger_{std::to_string(id_)};
-    using Strand = net::strand<net::io_context::executor_type>;
-    Strand strand_{net::make_strand(io_)};
     Timer bread_timer_{io_};
     Timer sausage_timer_{io_};
     std::shared_ptr<Bread> bread_;
@@ -88,15 +86,14 @@ class Order : public std::enable_shared_from_this<Order> {
 
     void BakeBread() {
         logger_.LogMessage("Start baking Bread"sv);
-        bread_->StartBake(
-            gas_cooker_, [self = shared_from_this(), bread = bread_] {
-                self->bread_timer_.expires_from_now(1001ms);
-                self->bread_timer_.async_wait(net::bind_executor(
-                    self->strand_, [self, bread](sys::error_code ec) {
-                        bread->StopBaking();
-                        self->OnBaking(ec);
-                    }));
+        bread_->StartBake(gas_cooker_, [self = shared_from_this(),
+                                        bread = bread_] {
+            self->bread_timer_.expires_from_now(1000ms);
+            self->bread_timer_.async_wait([self, bread](sys::error_code ec) {
+                bread->StopBaking();
+                self->OnBaking(ec);
             });
+        });
     }
 
     void OnBaking(sys::error_code ec) {
@@ -111,15 +108,15 @@ class Order : public std::enable_shared_from_this<Order> {
 
     void FrySausage() {
         logger_.LogMessage("Start frying sausage"sv);
-        sausage_->StartFry(
-            gas_cooker_, [self = shared_from_this(), sausage = sausage_]() {
-                self->sausage_timer_.expires_from_now(1501ms);
-                self->sausage_timer_.async_wait(net::bind_executor(
-                    self->strand_, [self, sausage](sys::error_code ec) {
-                        sausage->StopFry();
-                        self->OnFrySausage(ec);
-                    }));
-            });
+        sausage_->StartFry(gas_cooker_,
+                           [self = shared_from_this(), sausage = sausage_]() {
+                               self->sausage_timer_.expires_from_now(1500ms);
+                               self->sausage_timer_.async_wait(
+                                   [self, sausage](sys::error_code ec) {
+                                       sausage->StopFry();
+                                       self->OnFrySausage(ec);
+                                   });
+                           });
     }
 
     void OnFrySausage(sys::error_code ec) {
@@ -147,15 +144,19 @@ class Cafeteria {
     // Асинхронно готовит хот-дог и вызывает handler, как только хот-дог будет
     // готов. Этот метод может быть вызван из произвольного потока
     void OrderHotDog(HotDogHandler handler) {
-        std::make_shared<Order>(next_order_id_++, io_, store_, *gas_cooker_,
-                                std::move(handler))
-            ->Execute();
+        net::dispatch(strand_, [this, handler] {
+            std::make_shared<Order>(++next_order_id_, io_, store_, *gas_cooker_,
+                                    std::move(handler))
+                ->Execute();
+        });
     }
 
    private:
     net::io_context& io_;
     // Используется для создания ингредиентов хот-дога
     Store store_;
+    using Strand = net::strand<net::io_context::executor_type>;
+    Strand strand_{net::make_strand(io_)};
     // Газовая плита. По условию задачи в кафетерии есть только одна газовая
     // плита на 8 горелок Используйте её для приготовления ингредиентов
     // хот-дога. Плита создаётся с помощью make_shared, так как GasCooker
