@@ -68,30 +68,21 @@ class Order : public std::enable_shared_from_this<Order> {
     // Запускает асинхронное выполнение заказа
     void Execute() {
         logger_.LogMessage("Order has been started."sv);
-        FrySausage();
-        BakeBread();
+        net::post(strand_, [self = shared_from_this()] { self->FrySausage(); });
+        net::post(strand_, [self = shared_from_this()] { self->BakeBread(); });
     }
 
    private:
-    net::io_context& io_;
-    int id_;
-    HotDogHandler hot_dog_handler_;
-    Logger logger_{std::to_string(id_)};
-    Timer bread_timer_{io_};
-    Timer sausage_timer_{io_};
-    std::shared_ptr<Bread> bread_;
-    std::shared_ptr<Sausage> sausage_;
-    GasCooker& gas_cooker_;
-    std::atomic_int counter_{0};
-
     void BakeBread() {
         logger_.LogMessage("Start baking Bread"sv);
         bread_->StartBake(gas_cooker_, [self = shared_from_this(),
                                         bread = bread_] {
-            self->bread_timer_.expires_from_now(1000ms);
+            self->bread_timer_.expires_after(1000ms);
             self->bread_timer_.async_wait([self, bread](sys::error_code ec) {
-                bread->StopBaking();
-                self->OnBaking(ec);
+                net::dispatch(self->strand_, [self, ec] {
+                    self->bread_->StopBaking();
+                    self->OnBaking(ec);
+                });
             });
         });
     }
@@ -103,18 +94,22 @@ class Order : public std::enable_shared_from_this<Order> {
         } else {
             logger_.LogMessage("Bread has been baked."sv);
         }
-        CheckReadiness(ec);
+        net::post(strand_, [self = shared_from_this(), ec] {
+            self->CheckReadiness(ec);
+        });
     }
 
     void FrySausage() {
         logger_.LogMessage("Start frying sausage"sv);
         sausage_->StartFry(gas_cooker_,
-                           [self = shared_from_this(), sausage = sausage_]() {
-                               self->sausage_timer_.expires_from_now(1500ms);
+                           [self = shared_from_this(), sausage = sausage_] {
+                               self->sausage_timer_.expires_after(1500ms);
                                self->sausage_timer_.async_wait(
                                    [self, sausage](sys::error_code ec) {
-                                       sausage->StopFry();
-                                       self->OnFrySausage(ec);
+                                       net::dispatch(self->strand_, [self, ec] {
+                                           self->sausage_->StopFry();
+                                           self->OnFrySausage(ec);
+                                       });
                                    });
                            });
     }
@@ -126,14 +121,32 @@ class Order : public std::enable_shared_from_this<Order> {
         } else {
             logger_.LogMessage("Sausage has been fried."sv);
         }
-        CheckReadiness(ec);
+        net::post(strand_, [self = shared_from_this(), ec] {
+            self->CheckReadiness(ec);
+        });
     }
 
     void CheckReadiness(sys::error_code ec) {
+        if (done_) return;
         if (bread_->IsCooked() && sausage_->IsCooked()) {
-            hot_dog_handler_(Result{HotDog{id_, sausage_, bread_}});
+            hot_dog_handler_(Result<HotDog>{HotDog{id_, sausage_, bread_}});
+            done_ = true;
         }
     }
+
+    net::io_context& io_;
+    int id_;
+    HotDogHandler hot_dog_handler_;
+    Logger logger_{std::to_string(id_)};
+    Timer bread_timer_{io_};
+    Timer sausage_timer_{io_};
+    std::shared_ptr<Bread> bread_;
+    std::shared_ptr<Sausage> sausage_;
+    GasCooker& gas_cooker_;
+    using Strand = net::strand<net::io_context::executor_type>;
+    Strand strand_{net::make_strand(io_)};
+    std::atomic_int counter_{0};
+    bool done_ = false;
 };
 
 // Класс "Кафетерий". Готовит хот-доги
@@ -141,11 +154,12 @@ class Cafeteria {
    public:
     explicit Cafeteria(net::io_context& io) : io_{io} {}
 
-    // Асинхронно готовит хот-дог и вызывает handler, как только хот-дог будет
-    // готов. Этот метод может быть вызван из произвольного потока
+    // Асинхронно готовит хот-дог и вызывает handler, как только хот-дог
+    // будет готов. Этот метод может быть вызван из произвольного потока
     void OrderHotDog(HotDogHandler handler) {
         net::dispatch(strand_, [this, handler] {
-            std::make_shared<Order>(++next_order_id_, io_, store_, *gas_cooker_,
+            int order_id = ++next_order_id_;
+            std::make_shared<Order>(order_id, io_, store_, *gas_cooker_,
                                     std::move(handler))
                 ->Execute();
         });
@@ -163,4 +177,5 @@ class Cafeteria {
     // унаследован от enable_shared_from_this.
     std::shared_ptr<GasCooker> gas_cooker_ = std::make_shared<GasCooker>(io_);
     int next_order_id_ = 0;
+    std::mutex mutex_;
 };
