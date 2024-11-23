@@ -14,11 +14,23 @@ using StringResponse = http::response<http::string_body>;
 
 std::vector<std::string_view> SplitStr(std::string_view str);
 
+namespace {
+    // Константы для индексов компонентов пути
+    constexpr size_t kApiIndex = 0;
+    constexpr size_t kVersionIndex = 1;
+    constexpr size_t kMapsIndex = 2;
+    constexpr size_t kMapIdIndex = 3;
+
+    // Константы для размеров
+    constexpr size_t kExpectedPathSizeForMap = 4;
+    constexpr size_t kMinPathSizeForBadRequest = 3;
+    constexpr size_t kMaxPathSizeForBadRequest = 4;
+}
+
 template <typename Body, typename Allocator>
 bool IsGetMapListRequest(
     const http::request<Body, http::basic_fields<Allocator>>& req) {
-    return (req.target() == "/api/v1/maps") ||
-           (req.target() == "/api/v1/maps/");
+    return (req.target() == "/api/v1/maps") || (req.target() == "/api/v1/maps/");
 }
 
 template <typename Body, typename Allocator>
@@ -38,10 +50,12 @@ bool IsGetMapByIdRequest(
     const http::request<Body, http::basic_fields<Allocator>>& req,
     const model::Game& game) {
     auto pathComponents = SplitStr(req.target());
-    return (pathComponents.size() == 4) && (pathComponents[0] == "api") &&
-           (pathComponents[1] == "v1") && (pathComponents[2] == "maps") &&
-           (game.FindMap(model::Map::Id(std::string(pathComponents[3]))) !=
-            nullptr);
+    bool isValidPath = (pathComponents.size() == kExpectedPathSizeForMap) &&
+                       (pathComponents[kApiIndex] == "api") &&
+                       (pathComponents[kVersionIndex] == "v1") &&
+                       (pathComponents[kMapsIndex] == "maps");
+    bool mapExists = (game.FindMap(model::Map::Id(std::string(pathComponents[kMapIdIndex]))) != nullptr);
+    return isValidPath && mapExists;
 }
 
 template <typename Body, typename Allocator>
@@ -49,7 +63,7 @@ StringResponse HandleGetMapById(
     const http::request<Body, http::basic_fields<Allocator>>& req,
     const model::Game& game) {
     StringResponse response(http::status::ok, req.version());
-    auto id = SplitStr(req.target())[3];
+    auto id = SplitStr(req.target())[kMapIdIndex];
     response.set(http::field::content_type, "application/json");
     response.body() = jsonOperation::SerializeMapToJson(
         *game.FindMap(model::Map::Id(std::string(id))));
@@ -62,10 +76,12 @@ template <typename Body, typename Allocator>
 bool IsBadRequest(
     const http::request<Body, http::basic_fields<Allocator>>& req) {
     auto pathComponents = SplitStr(req.target());
-    return (!pathComponents.empty()) && (pathComponents[0] == "api") &&
-           ((pathComponents.size() > 4) || (pathComponents.size() < 3) ||
-            ((pathComponents.size() >= 2) && (pathComponents[1] != "v1")) ||
-            ((pathComponents.size() >= 3) && (pathComponents[2] != "maps")));
+    bool isApiPath = (!pathComponents.empty()) && (pathComponents[kApiIndex] == "api");
+    bool isInvalidSize = (pathComponents.size() > kMaxPathSizeForBadRequest) ||
+                         (pathComponents.size() < kMinPathSizeForBadRequest);
+    bool isInvalidVersion = (pathComponents.size() >= 2) && (pathComponents[kVersionIndex] != "v1");
+    bool isInvalidMaps = (pathComponents.size() >= 3) && (pathComponents[kMapsIndex] != "maps");
+    return isApiPath && (isInvalidSize || isInvalidVersion || isInvalidMaps);
 }
 
 template <typename Body, typename Allocator>
@@ -84,10 +100,12 @@ bool IsMapNotFoundRequest(
     const http::request<Body, http::basic_fields<Allocator>>& req,
     const model::Game& game) {
     auto pathComponents = SplitStr(req.target());
-    return (pathComponents.size() == 4) && (pathComponents[0] == "api") &&
-           (pathComponents[1] == "v1") && (pathComponents[2] == "maps") &&
-           (game.FindMap(model::Map::Id(std::string(pathComponents[3]))) ==
-            nullptr);
+    bool isValidPath = (pathComponents.size() == kExpectedPathSizeForMap) &&
+                       (pathComponents[kApiIndex] == "api") &&
+                       (pathComponents[kVersionIndex] == "v1") &&
+                       (pathComponents[kMapsIndex] == "maps");
+    bool mapNotFound = (game.FindMap(model::Map::Id(std::string(pathComponents[kMapIdIndex]))) == nullptr);
+    return isValidPath && mapNotFound;
 }
 
 template <typename Body, typename Allocator>

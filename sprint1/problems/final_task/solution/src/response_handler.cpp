@@ -5,7 +5,7 @@ namespace responseHandler {
 std::vector<std::string_view> SplitStr(std::string_view str) {
     std::vector<std::string_view> result;
     std::string delim = "/";
-    if (str.empty() or str == delim) return result;
+    if (str.empty() || str == delim) return result;
     auto tmpStr = str.substr(1);
     auto start = 0U;
     auto end = tmpStr.find(delim);
