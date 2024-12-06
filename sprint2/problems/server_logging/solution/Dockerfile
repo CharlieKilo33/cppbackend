@@ -1,4 +1,4 @@
-FROM gcc:11.4 as build
+FROM gcc:11.3 as build
 
 # Выполнить установку зависимостей внутри контейнера.
 RUN apt update && \
