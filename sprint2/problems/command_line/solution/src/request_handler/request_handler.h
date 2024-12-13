@@ -21,8 +21,12 @@ class RequestHandler {
   RequestHandler(const RequestHandler&) = delete;
   RequestHandler& operator=(const RequestHandler&) = delete;
 
+  /*Новый обработчик, вроде короче...но вызывает сомнения в производительности. рошлый
+   * стал большим и нечитаемым*/
   template <typename Body, typename Allocator, typename Send>
-  void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
+  void operator()(http::request<Body, http::basic_fields<Allocator>>&& req,
+                  Send&& send) {  //
+    // Обработать запрос request и отправить ответ, используя send
     if (requestHandler::ApiRequestHandlerProxy<
             http::request<Body, http::basic_fields<Allocator>>, Send>::GetInstance()
             .Execute(req, application_, std::move(send))) {
@@ -37,8 +41,9 @@ class RequestHandler {
   }
 
  private:
-  app::Application& application_;
-  std::filesystem::path staticContentPath_;
+  app::Application& application_;  // Тут теперь апп, объект игры уже внутри апп, ио там
+                                   // же
+  std::filesystem::path staticContentPath_;  // Путь где зранятся файлы, static content
 };
 
 }  // namespace http_handler

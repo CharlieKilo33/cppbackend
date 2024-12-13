@@ -13,7 +13,8 @@ namespace net = boost::asio;
 template <typename Request, typename Send>
 class ApiRequestHandlerProxy {
   using ActivatorType = bool (*)(const Request&);
-  using HandlerType = std::optional<size_t> (*)(const Request&, app::Application&, Send&);
+  using HandlerType = std::optional<size_t> (*)(const Request&, app::Application&,
+                                                Send&&);
 
  public:
   /*Всё копирование запрещено*/
@@ -27,16 +28,15 @@ class ApiRequestHandlerProxy {
     return obj;
   };
 
-  bool Execute(const Request& req, app::Application& application,
-               Send&& send) {  // Сам исполнитель
+  bool Execute(const Request& req, app::Application& application, Send&& send) {
     for (auto item : requests_) {
       if (item.GetActivator()(req)) {
-        net::dispatch(*application.GetStrand(), [&item, &req, &application, &send] {
-          auto res = item.GetHandler(req.method())(req, application, send);
-          while (res.has_value()) {  // Возможно плохо, т.к. блокирующий режим
-            res = item.GetAddHandlerByIndex(res.value())(req, application, send);
-          }
-        });
+        auto res =
+            item.GetHandler(req.method())(req, application, std::forward<Send>(send));
+        while (res.has_value()) {
+          res = item.GetAddHandlerByIndex(res.value())(req, application,
+                                                       std::forward<Send>(send));
+        }
         return true;
       }
     }
@@ -51,6 +51,9 @@ class ApiRequestHandlerProxy {
                                          BadRequest),
       RHUnit<ActivatorType, HandlerType>(GetMapByIdCheck, {{http::verb::get, GetMapById}},
                                          BadRequest, {MapNotFound}),
+      RHUnit<ActivatorType, HandlerType>(InvalidContentTypeCheck,
+                                         {{http::verb::post, InvalidContentType}},
+                                         InvalidContentType),
       RHUnit<ActivatorType, HandlerType>(JoinToGameInvalidJsonCheck,
                                          {{http::verb::post, JoinToGameInvalidJson}},
                                          OnlyPostMethodAllowed),
@@ -79,9 +82,9 @@ class ApiRequestHandlerProxy {
                                          {{http::verb::post, PlayerAction}},
                                          InvalidMethod, {UnknownToken}),
       RHUnit<ActivatorType, HandlerType>(
-          InvalidDeltaTimeCheck, {{http::verb::post, InvalidDeltaTime}}, InvalidMethod),
+          InvalidDeltaTimeCheck, {{http::verb::post, InvalidDeltaTime}}, InvalidEndpoint),
       RHUnit<ActivatorType, HandlerType>(
-          SetDeltaTimeCheck, {{http::verb::post, SetDeltaTime}}, InvalidMethod)};
+          SetDeltaTimeCheck, {{http::verb::post, SetDeltaTime}}, InvalidEndpoint)};
 
   ApiRequestHandlerProxy() = default;
 };

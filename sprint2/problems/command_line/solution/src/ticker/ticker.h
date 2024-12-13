@@ -6,7 +6,7 @@
 #include <functional>
 #include <memory>
 
-#include "error_handler.h"
+#include "../ticker/error_handler.h"
 
 namespace tickerTime {
 

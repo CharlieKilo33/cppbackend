@@ -4,9 +4,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "../model/game.h"
 #include "../model/player.h"
 #include "../model/player_tokens.h"
+#include "../model/game.h"
 #include "../other/tagged.h"
 #include "../ticker/ticker.h"
 
@@ -45,24 +45,24 @@ class Application {
   const model::Game::Maps& ListMap() const noexcept;  // Выдать список карт
   const std::shared_ptr<model::Map> FindMap(
       const model::Map::Id& id) const noexcept;  // Найти карту
-  std::tuple<model::Token, model::Player::Id> JoinGame(
+  std::tuple<auth::Token, Player::Id> JoinGame(
       const std::string& player_name, const model::Map::Id& id);  // Залогинить игорька
-  const std::vector<std::weak_ptr<model::Player> >& GetPlayersFromSession(
-      model::Token token);                      // Посмотреть сколько играют
-  bool CheckPlayerByToken(model::Token token);  // Чекнуть, если такой в игре
-  void MovePlayer(const model::Token& token,
+  const std::vector<std::weak_ptr<Player> >& GetPlayersFromSession(
+      auth::Token token);  // Посмотреть сколько играют
+  bool CheckPlayerByToken(auth::Token token);  // Чекнуть, если такой в игре
+  void MovePlayer(const auth::Token& token,
                   model::Direction direction);  // Передвижение игрока
-  std::shared_ptr<StrandApp> GetStrand();       // Геттер, на всякий случай...
-  bool CheckTimeManage();                       // Как управляем временем, вручную или нет
+  std::shared_ptr<StrandApp> GetStrand();  // Геттер, на всякий случай...
+  bool CheckTimeManage();  // Как управляем временем, вручную или нет
   void UpdateGameState(const std::chrono::milliseconds& time);  // апдейтим состояние игры
-  void AddGameSession(std::shared_ptr<model::GameSession> session);    // Добавить сессию
-  std::shared_ptr<model::GameSession> GameSessionById(
+  void AddGameSession(std::shared_ptr<GameSession> session);  // Добавить сессию
+  std::shared_ptr<GameSession> GameSessionById(
       const model::Map::Id& id) const noexcept;  // Геттер сессии по айди
 
  private:
-  using SessionIdHasher = util::TaggedHasher<model::GameSession::Id>;
+  using SessionIdHasher = util::TaggedHasher<GameSession::Id>;
   using SessionIdToIndex =
-      std::unordered_map<model::GameSession::Id, std::vector<std::weak_ptr<model::Player> >,
+      std::unordered_map<GameSession::Id, std::vector<std::weak_ptr<Player> >,
                          SessionIdHasher>;
 
   using MapIdHasher = util::TaggedHasher<model::Map::Id>;
@@ -71,22 +71,21 @@ class Application {
   model::Game game_;                      // Объект игры
   std::chrono::milliseconds tickPeriod_;  // Период обновления
   bool randomizePosition_;  // Флаг того ставитьли собак рандомно или в {0 0}
-  std::vector<std::shared_ptr<model::Player> > players_;  // Вектор игорьков
-  SessionIdToIndex sessionID_;                            // ID сессии
-  model::PlayerTokens playerTokens_;
+  std::vector<std::shared_ptr<Player> > players_;  // Вектор игорьков
+  SessionIdToIndex sessionID_;                     // ID сессии
+  auth::PlayerTokens playerTokens_;
   net::io_context& ioc_;
   std::shared_ptr<StrandApp> strand_;           // На всякий случай...
   std::shared_ptr<tickerTime::Ticker> ticker_;  // Тикер
-  std::vector<std::shared_ptr<model::GameSession> >
+  std::vector<std::shared_ptr<GameSession> >
       sessions_;  // из гейм сессии перенос, после рефактора
   MapIdToSessionIndex map_id_to_session_index_;  // из гейм сессии перенос, после
                                                  // рефактора
 
-  std::shared_ptr<model::Player> CreatePlayer(const std::string& player_name);  // Создать
-                                                                                // игорька
-  void BindPlayerInSession(
-      std::shared_ptr<model::Player> player,  // Забиндить игорька в сессию
-      std::shared_ptr<model::GameSession> session);
+  std::shared_ptr<Player> CreatePlayer(const std::string& player_name);  // Создать
+                                                                         // игорька
+  void BindPlayerInSession(std::shared_ptr<Player> player,  // Забиндить игорька в сессию
+                           std::shared_ptr<GameSession> session);
 };
 
 }  // namespace app

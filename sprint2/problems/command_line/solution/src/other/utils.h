@@ -9,3 +9,10 @@ namespace requestHandler {
 	std::string GetBearerToken(std::string_view bearer_string);
 
 }//namespace requestHandler
+
+namespace randomgen {
+
+	double RandomDouble(const double thl, const double thh);
+	int RandomInt(const int thl, const int thh);
+
+}//namespace random

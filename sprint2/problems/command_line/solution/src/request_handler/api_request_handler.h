@@ -3,8 +3,8 @@
 #include <vector>
 
 #include "../app/app.h"
-#include "../json/json_handler.h"
 #include "../model/player_tokens.h"
+#include "../json/json_handler.h"
 #include "../other/utils.h"
 
 namespace requestHandler {
@@ -226,7 +226,7 @@ bool GetPlayersListCheck(const Request& req) {
 template <typename Request, typename Send>
 std::optional<size_t> GetPlayersList(const Request& req, app::Application& application,
                                      Send&& send) {
-  model::Token token{GetBearerToken(req[http::field::authorization])};
+  auth::Token token{GetBearerToken(req[http::field::authorization])};
   if (!application.CheckPlayerByToken(token)) {
     return 0;
   }
@@ -262,8 +262,8 @@ bool GameStateCheck(const Request& req) {
 
 template <typename Request, typename Send>
 std::optional<size_t> GetGameState(const Request& req, app::Application& application,
-                                   Send& send) {
-  model::Token token{GetBearerToken(req[http::field::authorization])};
+                                   Send&& send) {
+  auth::Token token{GetBearerToken(req[http::field::authorization])};
   if (!application.CheckPlayerByToken(token)) {
     return 0;
   }
@@ -289,7 +289,7 @@ bool InvalidContentTypeCheck(const Request& req) {
 
 template <typename Request, typename Send>
 std::optional<size_t> InvalidContentType(const Request& req,
-                                         app::Application& application, Send& send) {
+                                         app::Application& application, Send&& send) {
   StringResponse response(http::status::bad_request, req.version());
   response.set(http::field::content_type, "application/json");
   response.set(http::field::cache_control, "no-cache");
@@ -314,7 +314,7 @@ bool PlayerInvalidActionCheck(const Request& req) {
 
 template <typename Request, typename Send>
 std::optional<size_t> PlayerInvalidAction(const Request& req,
-                                          app::Application& application, Send& send) {
+                                          app::Application& application, Send&& send) {
   StringResponse response(http::status::bad_request, req.version());
   response.set(http::field::content_type, "application/json");
   response.set(http::field::cache_control, "no-cache");
@@ -333,8 +333,8 @@ bool PlayerActionCheck(const Request& req) {
 
 template <typename Request, typename Send>
 std::optional<size_t> PlayerAction(const Request& req, app::Application& application,
-                                   Send& send) {
-  model::Token token{GetBearerToken(req[http::field::authorization])};
+                                   Send&& send) {
+  auth::Token token{GetBearerToken(req[http::field::authorization])};
   if (!application.CheckPlayerByToken(token)) {
     return 0;
   }
@@ -386,7 +386,10 @@ bool InvalidDeltaTimeCheck(const Request& req) {
 
 template <typename Request, typename Send>
 std::optional<size_t> InvalidDeltaTime(const Request& req, app::Application& application,
-                                       Send& send) {
+                                       Send&& send) {
+  if (!application.CheckTimeManage()) {
+    return 0;
+  }
   StringResponse response(http::status::bad_request, req.version());
   response.set(http::field::content_type, "application/json");
   response.set(http::field::cache_control, "no-cache");
@@ -404,14 +407,45 @@ bool SetDeltaTimeCheck(const Request& req) {
 
 template <typename Request, typename Send>
 std::optional<size_t> SetDeltaTime(const Request& req, app::Application& application,
-                                   Send& send) {
-  int delta_time = jsonOperation::ParseSetDeltaTimeRequest(req.body()).value();
-  std::chrono::milliseconds dtime(delta_time);
-  application.UpdateGameState(dtime);
-  StringResponse response(http::status::ok, req.version());
+                                   Send&& send) {
+  if (!application.CheckTimeManage()) {  //--tick-period передан
+    StringResponse response(http::status::bad_request, req.version());
+    response.set(http::field::content_type, "application/json");
+    response.set(http::field::cache_control, "no-cache");
+    response.body() = jsonOperation::InvalidEndpoint();
+    response.content_length(response.body().size());
+    response.keep_alive(req.keep_alive());
+    send(response);
+  } else {
+    boost::asio::dispatch(
+        *application.GetStrand(),
+        [req = std::move(req), application = &application, send = std::move(send)] {
+          int delta_time = jsonOperation::ParseSetDeltaTimeRequest(req.body()).value();
+          std::chrono::milliseconds dtime(delta_time);
+          application->UpdateGameState(dtime);
+          StringResponse response(http::status::ok, req.version());
+          response.set(http::field::content_type, "application/json");
+          response.set(http::field::cache_control, "no-cache");
+          response.body() = jsonOperation::SetDeltaTime();
+          response.content_length(response.body().size());
+          response.keep_alive(req.keep_alive());
+          send(response);
+        });
+  }
+
+  return std::nullopt;
+}
+
+template <typename Request, typename Send>
+std::optional<size_t> InvalidEndpoint(const Request& req, app::Application& application,
+                                      Send&& send) {
+  StringResponse response(application.CheckTimeManage() ? http::status::method_not_allowed
+                                                        : http::status::bad_request,
+                          req.version());
   response.set(http::field::content_type, "application/json");
   response.set(http::field::cache_control, "no-cache");
-  response.body() = jsonOperation::SetDeltaTime();
+  response.body() = application.CheckTimeManage() ? jsonOperation::InvalidMethod()
+                                                  : jsonOperation::InvalidEndpoint();
   response.content_length(response.body().size());
   response.keep_alive(req.keep_alive());
   send(response);

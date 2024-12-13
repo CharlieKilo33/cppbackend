@@ -25,7 +25,8 @@ class RHUnit {
   RHUnit& operator=(RHUnit&& other) = default;
   virtual ~RHUnit() = default;
 
-  Handler& GetHandler(http::verb method) {
+  Handler& GetHandler(
+      http::verb method) {  // Геттер на хэндлер, если метода нет, то выдаст хэндл ошибок
     if (handlers_.contains(method)) {
       return handlers_[method];
     } else {

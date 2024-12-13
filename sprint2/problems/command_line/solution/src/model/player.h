@@ -4,7 +4,7 @@
 #include "../model/game_session.h"
 #include "../other/tagged.h"
 
-namespace model {
+namespace app {
 
 class Player {
   inline static size_t cntMaxId = 0;
@@ -44,4 +44,4 @@ class Player {
   std::shared_ptr<model::Dog> dog_;       // собака игрока
 };
 
-}  // namespace model
+}  // namespace app
