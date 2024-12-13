@@ -1,9 +1,12 @@
 #pragma once
+#include <boost/beast/http.hpp>
 #include <filesystem>
+#include <unordered_map>
+#include <vector>
 
 #include "../app/app.h"
-#include "../request_handler/api_request_handler_proxy.h"
-#include "../request_handler/static_file_request_handler_proxy.h"
+#include "../request_handler/api_request_handler.h"
+#include "../request_handler/static_file_request_handler.h"
 #include "../server/http_server.h"
 
 namespace http_handler {
@@ -21,12 +24,8 @@ class RequestHandler {
   RequestHandler(const RequestHandler&) = delete;
   RequestHandler& operator=(const RequestHandler&) = delete;
 
-  /*Новый обработчик, вроде короче...но вызывает сомнения в производительности. рошлый
-   * стал большим и нечитаемым*/
   template <typename Body, typename Allocator, typename Send>
-  void operator()(http::request<Body, http::basic_fields<Allocator>>&& req,
-                  Send&& send) {  //
-    // Обработать запрос request и отправить ответ, используя send
+  void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
     if (requestHandler::ApiRequestHandlerProxy<
             http::request<Body, http::basic_fields<Allocator>>, Send>::GetInstance()
             .Execute(req, application_, std::move(send))) {
@@ -41,9 +40,9 @@ class RequestHandler {
   }
 
  private:
-  app::Application& application_;  // Тут теперь апп, объект игры уже внутри апп, ио там
-                                   // же
-  std::filesystem::path staticContentPath_;  // Путь где зранятся файлы, static content
+  app::Application& application_;
+  std::filesystem::path staticContentPath_;
 };
 
 }  // namespace http_handler
+

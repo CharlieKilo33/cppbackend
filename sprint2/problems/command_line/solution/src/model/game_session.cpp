@@ -1,6 +1,6 @@
 #include "../model/game_session.h"
 
-namespace app {
+namespace model {
 
     const GameSession::Id& GameSession::GetId() const noexcept {
         return id_;

@@ -1,6 +1,12 @@
-#include <iostream>
-
 #include "../app/app.h"
+
+#include <algorithm>
+#include <cassert>
+#include <optional>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
 #include "../model/dog.h"
 
 namespace app {
@@ -16,37 +22,36 @@ const std::shared_ptr<model::Map> Application::FindMap(
   return game_.FindMap(id);
 };
 
-std::tuple<auth::Token, Player::Id>
-Application::JoinGame(  // Если разрастётся, то придётся тапл на структура поменять
+std::tuple<auth::Token, model::Player::Id> Application::JoinGame(
     const std::string& name, const model::Map::Id& id) {
   auto player = CreatePlayer(name);
   auto token = playerTokens_.AddPlayer(player);
 
-  std::shared_ptr<GameSession> session = GameSessionById(id);
+  auto session = GameSessionById(id);
   if (!session) {
-    session = std::make_shared<GameSession>(game_.FindMap(id), ioc_);
+    session = std::make_shared<model::GameSession>(game_.FindMap(id), ioc_);
     AddGameSession(session);
   }
   BindPlayerInSession(player, session);
   return std::tie(token, player->GetId());
 };
 
-std::shared_ptr<Player> Application::CreatePlayer(const std::string& player_name) {
-  auto player = std::make_shared<Player>(player_name);
+std::shared_ptr<model::Player> Application::CreatePlayer(const std::string& player_name) {
+  auto player = std::make_shared<model::Player>(player_name);
   players_.push_back(player);
   return player;
 };
 
-void Application::BindPlayerInSession(std::shared_ptr<Player> player,
-                                      std::shared_ptr<GameSession> session) {
+void Application::BindPlayerInSession(std::shared_ptr<model::Player> player,
+                                      std::shared_ptr<model::GameSession> session) {
   sessionID_[session->GetId()].push_back(player);
   player->SetGameSession(session);
   player->SetDog(player->GetName(), *(session->GetMap()), randomizePosition_);
 };
 
-const std::vector<std::weak_ptr<Player> >& Application::GetPlayersFromSession(
+const std::vector<std::weak_ptr<model::Player> >& Application::GetPlayersFromSession(
     auth::Token token) {
-  static const std::vector<std::weak_ptr<Player> > emptyPlayerList;
+  static const std::vector<std::weak_ptr<model::Player> > emptyPlayerList;
   auto player = playerTokens_.FindPlayerByToken(token).lock();
   auto session_id = player->GetSessionId();
   if (!sessionID_.contains(session_id)) {
@@ -59,7 +64,7 @@ bool Application::CheckPlayerByToken(auth::Token token) {
   return !playerTokens_.FindPlayerByToken(token).expired();
 };
 
-void Application::UpdateGameState(const std::chrono::milliseconds& time) {
+void Application::UpdateTime(const std::chrono::milliseconds& time) {
   for (auto player : players_) {
     player->MoveDog(time);
   }
@@ -76,7 +81,7 @@ void Application::MovePlayer(const auth::Token& token, model::Direction directio
 
 bool Application::CheckTimeManage() { return tickPeriod_.count() == 0; };
 
-void Application::AddGameSession(std::shared_ptr<GameSession> session) {
+void Application::AddGameSession(std::shared_ptr<model::GameSession> session) {
   const size_t index = sessions_.size();
   if (auto [it, inserted] =
           map_id_to_session_index_.emplace(session->GetMap()->GetId(), index);
@@ -93,7 +98,7 @@ void Application::AddGameSession(std::shared_ptr<GameSession> session) {
   }
 };
 
-std::shared_ptr<GameSession> Application::GameSessionById(
+std::shared_ptr<model::GameSession> Application::GameSessionById(
     const model::Map::Id& id) const noexcept {
   if (auto it = map_id_to_session_index_.find(id); it != map_id_to_session_index_.end()) {
     return sessions_.at(it->second);

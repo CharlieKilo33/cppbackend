@@ -9,7 +9,7 @@
 
 namespace json_loader {
 
-namespace json = boost::json;  // Тут бустом пользуемся
+namespace json = boost::json;
 using namespace std::literals;
 
 boost::json::value ReadJSONFile(const std::filesystem::path& json_path) {
@@ -19,8 +19,7 @@ boost::json::value ReadJSONFile(const std::filesystem::path& json_path) {
         "error"sv,
         logger::ExceptionLog(EXIT_FAILURE, "Error: Can not open current file"sv,
                              "Invalid path"sv));
-    throw std::invalid_argument(
-        "Invalid path, can not open file");  // Всё плохо, передан кривой путь.
+    throw std::invalid_argument("Invalid path, can not open file");
   }
 
   std::stringstream ss;

@@ -4,7 +4,7 @@
 #include "../model/game_session.h"
 #include "../other/tagged.h"
 
-namespace app {
+namespace model {
 
 class Player {
   inline static size_t cntMaxId = 0;
@@ -19,29 +19,26 @@ class Player {
   Player& operator=(Player&& other) = default;
   virtual ~Player() = default;
 
-  void SetGameSession(std::shared_ptr<GameSession> session);  // Задать игровую сессию
+  void SetGameSession(std::shared_ptr<GameSession> session);
   void SetDog(const std::string& dog_name, const model::Map& map,
-              bool randomize_spawn_points);  // Сеттер собаки
+              bool randomize_spawn_points);
 
-  const Id& GetId() const;                      // Геттер на айди
-  const std::string& GetName() const;           // Геттер на имя
-  const GameSession::Id& GetSessionId() const;  // Геттер на сессию
-  std::shared_ptr<GameSession> GetSession();  // Геттер на сессию указатель
-  std::shared_ptr<model::Dog> GetDog();  // Геттер на собаку
+  const Id& GetId() const;
+  const std::string& GetName() const;
+  const GameSession::Id& GetSessionId() const;
+  std::shared_ptr<GameSession> GetSession();
+  std::shared_ptr<model::Dog> GetDog();
 
-  void MoveDog(
-      const std::chrono::milliseconds& diff_time);  // Метод который двигает собаку
+  void MoveDog(const std::chrono::milliseconds& diff_time);
 
  private:
-  void PutDogInRndPosition(
-      const model::Map& map);  // Разместить на рандомной позиции собаку
-  void PutDogInStartPosition(
-      const model::Map& map);  // Разместить на переданной позиции собаку
+  void PutDogInRandomPosition(const model::Map& map);
+  void PutDogInStartPosition(const model::Map& map);
 
-  Id id_;                                 // айди
-  std::string name_;                      // имя
-  std::shared_ptr<GameSession> session_;  // сессия в игре
-  std::shared_ptr<model::Dog> dog_;       // собака игрока
+  Id id_;
+  std::string name_;
+  std::shared_ptr<GameSession> session_;
+  std::shared_ptr<model::Dog> dog_;
 };
 
-}  // namespace app
+}  // namespace model

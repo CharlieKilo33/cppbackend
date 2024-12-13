@@ -6,10 +6,6 @@
 #include <string_view>
 #include <unordered_map>
 
-// Тут использовались перегрузки tag_invoke
-// https://www.boost.org/doc/libs/master/libs/json/doc/html/json/conversion/custom_conversions.html
-// Все tag_invoke ушли в cpp файл
-
 namespace logger {
 
 namespace beast = boost::beast;
@@ -18,7 +14,6 @@ namespace json = boost::json;
 using HttpRequest = http::request<http::string_body>;
 using namespace std::literals;
 
-/*Тут все константы полей для логгирования*/
 const std::string IP = "ip";
 const std::string URL = "URI";
 const std::string METHOD = "method";
@@ -33,7 +28,7 @@ const std::string TIMESTAMP = "timestamp";
 const std::string DATA = "data";
 const std::string MESSAGE = "message";
 
-struct RequestLog {  // Структура для запроса
+struct RequestLog {
   RequestLog(std::string ip_addr, const HttpRequest& req)
       : ip(ip_addr), url(req.target()), method(req.method_string()) {};
 
@@ -42,12 +37,11 @@ struct RequestLog {  // Структура для запроса
   std::string method;
 };
 
-/*Таг инвок для RequestLogData*/
 void tag_invoke(boost::json::value_from_tag, boost::json::value& jv,
                 const RequestLog& request);
 
 template <typename Body, typename Fields>
-struct ResponseLog {  // Структура для ответа
+struct ResponseLog {
   ResponseLog(std::string ip_addr, long res_time, const http::response<Body, Fields>& res)
       : ip(ip_addr),
         response_time(res_time),
@@ -60,7 +54,6 @@ struct ResponseLog {  // Структура для ответа
   std::string content_type;
 };
 
-/*Таг инвок для респонса*/
 template <typename Body, typename Fields>
 void tag_invoke(boost::json::value_from_tag, boost::json::value& jv,
                 const ResponseLog<Body, Fields>& response) {
@@ -70,18 +63,17 @@ void tag_invoke(boost::json::value_from_tag, boost::json::value& jv,
         {CONTENT_TYPE, json::value_from(response.content_type)}};
 };
 
-struct ServerAddrPortLog {  // Адрес порт
+struct ServerAddrPortLog {
   ServerAddrPortLog(std::string addr, uint32_t prt) : address(addr), port(prt) {};
 
   std::string address;
   uint32_t port;
 };
 
-/*Таг инвок для ServerAddressLog*/
 void tag_invoke(boost::json::value_from_tag, boost::json::value& jv,
                 const ServerAddrPortLog& server_address);
 
-struct ExceptionLog {  // Исключения
+struct ExceptionLog {
   ExceptionLog(int code, std::string_view text, std::string_view where)
       : code(code), text(text), where(where) {};
 
@@ -90,20 +82,18 @@ struct ExceptionLog {  // Исключения
   std::string_view where;
 };
 
-/*Таг инвок для исключений*/
 void tag_invoke(boost::json::value_from_tag, boost::json::value& jv,
                 const ExceptionLog& exception);
 
-struct ExitCodeLog {  // Код вылета
+struct ExitCodeLog {
   int code;
 };
 
-/*Таг для кода вылета*/
 void tag_invoke(boost::json::value_from_tag, boost::json::value& jv,
                 ExitCodeLog const& exit_code);
 
 template <class T>
-struct LogMessage {  // Сама шапка сообщения, время и месседж
+struct LogMessage {
   LogMessage(std::string_view msg, T&& custom_data) : message(msg), data(custom_data) {
     timestamp = boost::posix_time::to_iso_extended_string(
         boost::posix_time::microsec_clock::local_time());
@@ -114,7 +104,6 @@ struct LogMessage {  // Сама шапка сообщения, время и м
   std::string timestamp;
 };
 
-/*Таг для месседжа*/
 template <class T>
 void tag_invoke(boost::json::value_from_tag, boost::json::value& jv,
                 const LogMessage<T>& msg) {
@@ -123,7 +112,6 @@ void tag_invoke(boost::json::value_from_tag, boost::json::value& jv,
         {MESSAGE, json::value_from(msg.message)}};
 };
 
-/*Для логгирования ошибок*/
 struct ExceptionLogData {
   ExceptionLogData(int code, std::string_view text, std::string_view where)
       : code(code), text(text), where(where) {};

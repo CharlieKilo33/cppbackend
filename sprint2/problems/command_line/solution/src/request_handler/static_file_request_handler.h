@@ -1,14 +1,27 @@
 #pragma once
 #include <boost/beast/http.hpp>
+#include <functional>
 #include <iostream>
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <filesystem>
 
-#include "../other/file_system.h"
 #include "../logger/logger.h"
+#include "../request_handler/unit_handler.h"
 
 namespace requestHandler {
+bool IsSubPath(std::filesystem::path path, std::filesystem::path base) {
+  path = std::filesystem::weakly_canonical(path);
+  base = std::filesystem::weakly_canonical(base);
+
+  for (auto b = base.begin(), p = path.begin(); b != base.end(); ++b, ++p) {
+    if (p == path.end() || *p != *b) {
+      return false;
+    }
+  }
+  return true;
+}
 
 namespace beast = boost::beast;
 namespace http = beast::http;
@@ -16,18 +29,17 @@ namespace sys = boost::system;
 using StringResponse = http::response<http::string_body>;
 using namespace std::literals;
 
-const std::unordered_map<std::string, std::string> CONTENT_TYPE =
-    {  // Тут типы файлов, которые будем использовать
-        {".htm", "text/html"},       {".html", "text/html"},
-        {".css", "text/css"},        {".txt", "text/plain"},
-        {".js", "text/javascript"},  {".json", "application/json"},
-        {".xml", "application/xml"}, {".png", "image/png"},
-        {".jpg", "image/jpeg"},      {".jpe", "image/jpeg"},
-        {".jpeg", "image/jpeg"},     {".gif", "image/gif"},
-        {".bmp", "image/bmp"},       {".ico", "image/vnd.microsoft.icon"},
-        {".tiff", "image/tiff"},     {".tif", "image/tiff"},
-        {".svg", "image/svg+xml"},   {".svgz", "image/svg+xml"},
-        {".mp3", "audio/mpeg"}};
+const std::unordered_map<std::string, std::string> CONTENT_TYPE = {
+    {".htm", "text/html"},       {".html", "text/html"},
+    {".css", "text/css"},        {".txt", "text/plain"},
+    {".js", "text/javascript"},  {".json", "application/json"},
+    {".xml", "application/xml"}, {".png", "image/png"},
+    {".jpg", "image/jpeg"},      {".jpe", "image/jpeg"},
+    {".jpeg", "image/jpeg"},     {".gif", "image/gif"},
+    {".bmp", "image/bmp"},       {".ico", "image/vnd.microsoft.icon"},
+    {".tiff", "image/tiff"},     {".tif", "image/tiff"},
+    {".svg", "image/svg+xml"},   {".svgz", "image/svg+xml"},
+    {".mp3", "audio/mpeg"}};
 
 const std::string INDEX_FILE_NAME{"index.html"};
 
@@ -70,7 +82,7 @@ bool LeaveStaticContentRootDirCheck(const Request& req,
   std::string_view pathStr = req.target().substr(1, req.target().size() - 1);
   std::filesystem::path tmpPath{pathStr};
   staticContent = std::filesystem::weakly_canonical(staticContent / tmpPath);
-  return !userFileSystem::IsSubPath(staticContent, staticContentPath);
+  return !IsSubPath(staticContent, staticContentPath);
 };
 
 template <typename Request, typename Send>
@@ -88,14 +100,14 @@ void LeaveStaticContentRootDir(const Request& req,
 template <typename Request>
 bool GetStaticContentFileCheck(const Request& req,
                                const std::filesystem::path& staticContentPath) {
-  return true;  // тут пока всегда true
+  return true;
 };
 
 template <typename Request, typename Send>
 void GetStaticContentFile(const Request& req,
                           const std::filesystem::path& staticContentPath, Send&& send) {
   http::response<http::file_body> tmpRes;
-  tmpRes.version(11);  // это версия хттп 1.1
+  tmpRes.version(11);
   tmpRes.result(http::status::ok);
 
   std::filesystem::path staticContent{staticContentPath};
@@ -116,7 +128,6 @@ void GetStaticContentFile(const Request& req,
 
   http::file_body::value_type file;
 
-  /*Преобразование в конст чар, напрямую путь не хочет преобразовывать*/
   std::string staticContentStr = staticContent.string();
   const char* staticContentPtr = staticContentStr.c_str();
 
@@ -128,8 +139,50 @@ void GetStaticContentFile(const Request& req,
     tmpRes.body() = std::move(file);
   }
   tmpRes.insert(http::field::cache_control, "no-cache");
-  tmpRes.prepare_payload();  // Заполнит заголовки Content-Length и Transfer-Encoding
+  tmpRes.prepare_payload();
   send(tmpRes);
+};
+
+template <typename Request, typename Send>
+class StaticFileRequestHandlerProxy {
+  using ActivatorType = bool (*)(const Request&, const std::filesystem::path&);
+  using HandlerType = void (*)(const Request&, const std::filesystem::path&, Send&&);
+
+ public:
+  StaticFileRequestHandlerProxy(const StaticFileRequestHandlerProxy&) = delete;
+  StaticFileRequestHandlerProxy& operator=(const StaticFileRequestHandlerProxy&) = delete;
+  StaticFileRequestHandlerProxy(StaticFileRequestHandlerProxy&&) = delete;
+  StaticFileRequestHandlerProxy& operator=(StaticFileRequestHandlerProxy&&) = delete;
+
+  static StaticFileRequestHandlerProxy& GetInstance() {
+    static StaticFileRequestHandlerProxy obj;
+    return obj;
+  };
+
+  bool Execute(const Request& req, const std::filesystem::path& static_content_root,
+               Send&& send) {
+    for (auto item : requests_) {
+      if (item.GetActivator()(req, static_content_root)) {
+        item.GetHandler(req.method())(req, static_content_root, std::move(send));
+        return true;
+      }
+    }
+    return false;
+  };
+
+ private:
+  std::vector<RequestHandlerUnit<ActivatorType, HandlerType>> requests_ = {
+      RequestHandlerUnit<ActivatorType, HandlerType>(
+          StaticContentFileNotFoundCheck, {{http::verb::get, StaticContentFileNotFound}},
+          StaticContentFileNotFound),
+      RequestHandlerUnit<ActivatorType, HandlerType>(
+          LeaveStaticContentRootDirCheck, {{http::verb::get, LeaveStaticContentRootDir}},
+          LeaveStaticContentRootDir),
+      RequestHandlerUnit<ActivatorType, HandlerType>(
+          GetStaticContentFileCheck, {{http::verb::get, GetStaticContentFile}},
+          GetStaticContentFile)};
+
+  StaticFileRequestHandlerProxy() = default;
 };
 
 }  // namespace requestHandler

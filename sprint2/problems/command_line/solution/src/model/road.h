@@ -6,9 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "../model/const.h"
 #include "../model/dog.h"
-#include "../model/typedef.h"
 #include "../other/tagged.h"
 
 namespace model {
@@ -26,10 +24,10 @@ class Road {
   constexpr static HorizontalTag HORIZONTAL{};
   constexpr static VerticalTag VERTICAL{};
 
-  Road(HorizontalTag, Point start, Coord end_x) noexcept
+  Road(HorizontalTag, Point start, int end_x) noexcept
       : start_{start}, end_{end_x, start.y} {}
 
-  Road(VerticalTag, Point start, Coord end_y) noexcept
+  Road(VerticalTag, Point start, int end_y) noexcept
       : start_{start}, end_{start.x, end_y} {}
 
   bool IsHorizontal() const noexcept { return start_.y == end_.y; }

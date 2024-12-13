@@ -12,7 +12,7 @@ struct Args {
 };
 
 [[nodiscard]] Args ParseCommandLine(
-    int argc, const char* const argv[]);  // Парсинг командной строки
+    int argc, const char* const argv[]);
 
 class ConfigFileNotSpecifiedException : public std::exception {
  public:

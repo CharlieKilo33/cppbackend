@@ -5,14 +5,11 @@
 #include <thread>
 
 #include "app/app.h"
-#include "ticker/command.h"
 #include "json/json_loader.h"
 #include "logger/logger.h"
 #include "other/sdk.h"
 #include "request_handler/request_handler.h"
-
-#define BOOST_USE_WINAPI_VERSION 0x0501
-// #define DEBUG
+#include "ticker/command.h"
 
 using namespace std::literals;
 namespace net = boost::asio;
@@ -37,25 +34,12 @@ void RunWorkers(unsigned n, const Fn& fn) {
 
 int main(int argc, const char* argv[]) {
   logger::InitLogger();
-#ifndef DEBUG
   programm_option::Args args = programm_option::ParseCommandLine(argc, argv);
-#else
-  programm_option::Args args;
-  args.tick_period = 20;
-#endif
   try {
     // 1. Загружаем карту из файла и построить модель игры
-#ifndef DEBUG
     model::Game game = json_loader::LoadGame(args.config_file);
-#else
-    model::Game game = json_loader::LoadGame("data/config.json");  // для дебага
-#endif
     // 2. Устанавливаем путь до статического контента.
-#ifndef DEBUG
     std::filesystem::path staticContentPath{args.www_root};
-#else
-    std::filesystem::path staticContentPath{"static"};  // для дебага
-#endif
     // 3. Инициализируем io_context
     const unsigned num_threads = std::thread::hardware_concurrency();
     net::io_context ioc(num_threads);

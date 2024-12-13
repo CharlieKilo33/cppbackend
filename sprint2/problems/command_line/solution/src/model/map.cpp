@@ -15,7 +15,7 @@ void Map::AddOffice(Office office) {
   try {
     warehouse_id_to_index_.emplace(o.GetId(), index);
   } catch (...) {
-    offices_.pop_back();  // Возвращаем всё назад, из-за исключения
+    offices_.pop_back();
     throw;
   }
 }

@@ -1,11 +1,14 @@
 #pragma once
 #include <boost/beast/http.hpp>
+#include <functional>
+#include <optional>
 #include <vector>
 
 #include "../app/app.h"
-#include "../model/player_tokens.h"
 #include "../json/json_handler.h"
+#include "../model/player_tokens.h"
 #include "../other/utils.h"
+#include "../request_handler/unit_handler.h"
 
 namespace requestHandler {
 
@@ -408,7 +411,7 @@ bool SetDeltaTimeCheck(const Request& req) {
 template <typename Request, typename Send>
 std::optional<size_t> SetDeltaTime(const Request& req, app::Application& application,
                                    Send&& send) {
-  if (!application.CheckTimeManage()) {  //--tick-period передан
+  if (!application.CheckTimeManage()) {
     StringResponse response(http::status::bad_request, req.version());
     response.set(http::field::content_type, "application/json");
     response.set(http::field::cache_control, "no-cache");
@@ -422,7 +425,7 @@ std::optional<size_t> SetDeltaTime(const Request& req, app::Application& applica
         [req = std::move(req), application = &application, send = std::move(send)] {
           int delta_time = jsonOperation::ParseSetDeltaTimeRequest(req.body()).value();
           std::chrono::milliseconds dtime(delta_time);
-          application->UpdateGameState(dtime);
+          application->UpdateTime(dtime);
           StringResponse response(http::status::ok, req.version());
           response.set(http::field::content_type, "application/json");
           response.set(http::field::cache_control, "no-cache");
@@ -451,5 +454,85 @@ std::optional<size_t> InvalidEndpoint(const Request& req, app::Application& appl
   send(response);
   return std::nullopt;
 }
+
+namespace net = boost::asio;
+
+template <typename Request, typename Send>
+class ApiRequestHandlerProxy {
+  using ActivatorType = bool (*)(const Request&);
+  using HandlerType = std::optional<size_t> (*)(const Request&, app::Application&,
+                                                Send&&);
+
+ public:
+  ApiRequestHandlerProxy(const ApiRequestHandlerProxy&) = delete;
+  ApiRequestHandlerProxy& operator=(const ApiRequestHandlerProxy&) = delete;
+  ApiRequestHandlerProxy(ApiRequestHandlerProxy&&) = delete;
+  ApiRequestHandlerProxy& operator=(ApiRequestHandlerProxy&&) = delete;
+
+  static ApiRequestHandlerProxy& GetInstance() {
+    static ApiRequestHandlerProxy obj;
+    return obj;
+  };
+
+  bool Execute(const Request& req, app::Application& application, Send&& send) {
+    for (auto item : requests_) {
+      if (item.GetActivator()(req)) {
+        auto res =
+            item.GetHandler(req.method())(req, application, std::forward<Send>(send));
+        while (res.has_value()) {
+          res = item.GetAddHandlerByIndex(res.value())(req, application,
+                                                       std::forward<Send>(send));
+        }
+        return true;
+      }
+    }
+    return false;
+  };
+
+ private:
+  std::vector<RequestHandlerUnit<ActivatorType, HandlerType> > requests_ = {
+      RequestHandlerUnit<ActivatorType, HandlerType>(
+          BadRequestCheck, {{http::verb::get, BadRequest}}, BadRequest),
+      RequestHandlerUnit<ActivatorType, HandlerType>(
+          GetMapListСheck, {{http::verb::get, GetMapList}}, BadRequest),
+      RequestHandlerUnit<ActivatorType, HandlerType>(
+          GetMapByIdCheck, {{http::verb::get, GetMapById}}, BadRequest, {MapNotFound}),
+      RequestHandlerUnit<ActivatorType, HandlerType>(
+          InvalidContentTypeCheck, {{http::verb::post, InvalidContentType}},
+          InvalidContentType),
+      RequestHandlerUnit<ActivatorType, HandlerType>(
+          JoinToGameInvalidJsonCheck, {{http::verb::post, JoinToGameInvalidJson}},
+          OnlyPostMethodAllowed),
+      RequestHandlerUnit<ActivatorType, HandlerType>(
+          JoinToGameEmptyPlayerNameCheck, {{http::verb::post, JoinToGameEmptyPlayerName}},
+          OnlyPostMethodAllowed),
+      RequestHandlerUnit<ActivatorType, HandlerType>(
+          JoinToGameCheck, {{http::verb::post, JoinToGame}}, OnlyPostMethodAllowed,
+          {JoinToGameMapNotFound}),
+      RequestHandlerUnit<ActivatorType, HandlerType>(
+          EmptyAuthorizationCheck,
+          {{http::verb::get, EmptyAuthorization}, {http::verb::head, EmptyAuthorization}},
+          InvalidMethod),
+      RequestHandlerUnit<ActivatorType, HandlerType>(
+          GetPlayersListCheck,
+          {{http::verb::get, GetPlayersList}, {http::verb::head, GetPlayersList}},
+          InvalidMethod, {UnknownToken}),
+      RequestHandlerUnit<ActivatorType, HandlerType>(
+          GameStateCheck,
+          {{http::verb::get, GetGameState}, {http::verb::head, GetGameState}},
+          InvalidMethod, {UnknownToken}),
+      RequestHandlerUnit<ActivatorType, HandlerType>(
+          PlayerInvalidActionCheck, {{http::verb::post, PlayerInvalidAction}},
+          OnlyPostMethodAllowed),
+      RequestHandlerUnit<ActivatorType, HandlerType>(PlayerActionCheck,
+                                                     {{http::verb::post, PlayerAction}},
+                                                     InvalidMethod, {UnknownToken}),
+      RequestHandlerUnit<ActivatorType, HandlerType>(
+          InvalidDeltaTimeCheck, {{http::verb::post, InvalidDeltaTime}}, InvalidEndpoint),
+      RequestHandlerUnit<ActivatorType, HandlerType>(
+          SetDeltaTimeCheck, {{http::verb::post, SetDeltaTime}}, InvalidEndpoint)};
+
+  ApiRequestHandlerProxy() = default;
+};
 
 }  // namespace requestHandler

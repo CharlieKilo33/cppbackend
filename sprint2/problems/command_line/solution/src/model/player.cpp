@@ -1,6 +1,6 @@
 #include "../model/player.h"
 
-namespace app {
+namespace model {
 
     void Player::SetGameSession(std::shared_ptr<GameSession> session) {
         session_ = session;
@@ -9,7 +9,7 @@ namespace app {
     void Player::SetDog(const std::string& dog_name, const model::Map& map, bool randomize_spawn_points) {
         dog_ = std::make_shared<model::Dog>(dog_name);
         if (randomize_spawn_points) {
-            PutDogInRndPosition(map);
+            PutDogInRandomPosition(map);
         }
         else {
             PutDogInStartPosition(map);
@@ -46,7 +46,7 @@ namespace app {
         dog_->SetSpeed(new_speed);
     };
 
-    void Player::PutDogInRndPosition(const model::Map& map) {
+    void Player::PutDogInRandomPosition(const model::Map& map) {
         double x, y;
         auto roads = map.GetRoads();
         int road_index = randomgen::RandomInt(0, roads.size() - 1);

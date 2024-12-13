@@ -10,8 +10,6 @@ const size_t AUTHORIZATION_NUMBER_PARTS = 2;
 const size_t BEARER_INDEX = 0;
 const size_t TOKEN_INDEX = 1;
 
-/*С бустовским split почему-то валятся тесты,
-хотя при дебаге всё работает как надо. Оставил пока как есть.*/
 std::vector<std::string_view> SplitStr(std::string_view str) {
   std::vector<std::string_view> result;
   std::string delim = "/";
@@ -28,8 +26,6 @@ std::vector<std::string_view> SplitStr(std::string_view str) {
   return result;
 };
 
-// https://ru.hexlet.io/qna/glossary/questions/bearer-token-chto-eto
-// Будем использовать bearer токен
 std::string GetBearerToken(std::string_view bearer_string) {
   std::string token;
   std::vector<std::string_view> splitted;

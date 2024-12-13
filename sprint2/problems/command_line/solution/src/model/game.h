@@ -2,8 +2,8 @@
 #include <memory>
 
 #include "../model/game_session.h"
-#include "../model/player.h"
 #include "../model/map.h"
+#include "../model/player.h"
 
 namespace model {
 

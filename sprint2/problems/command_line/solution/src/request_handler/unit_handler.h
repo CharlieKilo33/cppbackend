@@ -9,9 +9,9 @@ namespace beast = boost::beast;
 namespace http = beast::http;
 
 template <typename Activator, typename Handler>
-class RHUnit {
+class RequestHandlerUnit {
  public:
-  RHUnit(Activator activator, std::unordered_map<http::verb, Handler> handlers,
+  RequestHandlerUnit(Activator activator, std::unordered_map<http::verb, Handler> handlers,
          Handler fault_handler,
          std::vector<Handler>&& add_Handlers = std::vector<Handler>())
       : activator_(std::move(activator)),
@@ -19,14 +19,8 @@ class RHUnit {
         faultHandler_(fault_handler),
         addHandlers_(std::move(add_Handlers)) {};
 
-  RHUnit(const RHUnit& other) = default;
-  RHUnit(RHUnit&& other) = default;
-  RHUnit& operator=(const RHUnit& other) = default;
-  RHUnit& operator=(RHUnit&& other) = default;
-  virtual ~RHUnit() = default;
-
   Handler& GetHandler(
-      http::verb method) {  // Геттер на хэндлер, если метода нет, то выдаст хэндл ошибок
+      http::verb method) {
     if (handlers_.contains(method)) {
       return handlers_[method];
     } else {

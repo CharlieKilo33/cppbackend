@@ -39,26 +39,18 @@ add_executable(game_server
 	src/model/map.cpp
 	src/model/player_tokens.h
 	src/model/player_tokens.cpp
-	src/model/const.h
-	src/model/typedef.h
-	src/model/typedef.cpp
 	src/model/road.h
 	src/model/road.cpp
 	src/model/road_layout.h
 	src/model/road_layout.cpp
-	src/other/data.h
 	src/other/tagged.h
 	src/other/sdk.h
 	src/other/utils.h
 	src/other/utils.cpp
-	src/other/file_system.h
-	src/other/file_system.cpp
 	src/request_handler/request_handler.h
-	src/request_handler/request_handler.cpp
 	src/request_handler/api_request_handler.h
-	src/request_handler/api_request_handler_proxy.h
 	src/request_handler/static_file_request_handler.h
-	src/request_handler/static_file_request_handler_proxy.h
+	src/request_handler/unit_handler.h
 	src/server/http_server.h
 	src/server/http_server.cpp
 	src/ticker/ticker.h
