@@ -19,19 +19,7 @@ class Application {
   using StrandApp = net::strand<net::io_context::executor_type>;
 
   Application(model::Game game, size_t tick_period, bool randomize_pos,
-              net::io_context& ioc)
-      : game_(std::move(game)),
-        tickPeriod_{tick_period},
-        randomizePosition_{randomize_pos},
-        ioc_(ioc),
-        strand_(std::make_shared<StrandApp>(net::make_strand(ioc))) {
-    if (tickPeriod_.count() != 0) {
-      ticker_ = std::make_shared<tickerTime::Ticker>(
-          strand_, tickPeriod_,
-          std::bind(&Application::UpdateTime, this, std::placeholders::_1));
-      ticker_->Start();
-    }
-  };
+              net::io_context& ioc);
 
   Application(const Application& other) = delete;
   Application(Application&& other) = delete;

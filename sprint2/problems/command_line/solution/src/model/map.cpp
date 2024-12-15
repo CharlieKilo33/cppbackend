@@ -1,6 +1,7 @@
 #include "../model/map.h"
 
 #include <stdexcept>
+#include <iostream>
 
 namespace model {
 using namespace std::literals;
@@ -14,9 +15,9 @@ void Map::AddOffice(Office office) {
   Office& o = offices_.emplace_back(std::move(office));
   try {
     warehouse_id_to_index_.emplace(o.GetId(), index);
-  } catch (...) {
+  } catch (const std::invalid_argument& e) {
     offices_.pop_back();
-    throw;
+    throw std::invalid_argument("Duplicate office: " + std::string(e.what()));
   }
 }
 
@@ -79,7 +80,11 @@ Map tag_invoke(json::value_to_tag<Map>, const json::value& jv) {
   try {
     double dog_speed = json::value_to<double>(jv.as_object().at(MAP_DOG_SPEED));
     map.SetDogSpeed(dog_speed);
-  } catch (...) {
+  } catch (const boost::json::system_error& e) {
+    std::cerr << "JSON exception: " << e.what() << " (Error code: " << e.code() << ")"
+              << std::endl;
+  } catch (const std::exception& e) {
+    std::cerr << "General exception: " << e.what() << std::endl;
   }
   return map;
 };

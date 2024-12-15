@@ -2,6 +2,7 @@
 
 #include <boost/json.hpp>
 #include <boost/json/array.hpp>
+#include <boost/json/error.hpp>
 #include <map>
 #include <sstream>
 
@@ -110,7 +111,12 @@ std::optional<std::tuple<std::string, model::Map::Id> > ParseJoinToGame(
     model::Map::Id map_id{
         boost::json::value_to<std::string>(jv.as_object().at(REQUEST_MAPID))};
     return std::tie(player_name, map_id);
-  } catch (...) {
+  } catch (const boost::json::system_error& e) {
+    std::cerr << "JSON exception: " << e.what() << " (Error code: " << e.code() << ")"
+              << std::endl;
+    return std::nullopt;
+  } catch (const std::exception& e) {
+    std::cerr << "General exception: " << e.what() << std::endl;
     return std::nullopt;
   }
 };
@@ -158,7 +164,12 @@ std::optional<std::string> ParsePlayerActionRequest(const std::string& msg) {
     std::string direction =
         boost::json::value_to<std::string>(jv.as_object().at(REQUEST_MOVE));
     return direction;
-  } catch (...) {
+  } catch (const boost::json::system_error& e) {
+    std::cerr << "JSON exception: " << e.what() << " (Error code: " << e.code() << ")"
+              << std::endl;
+    return std::nullopt;
+  } catch (const std::exception& e) {
+    std::cerr << "General exception: " << e.what() << std::endl;
     return std::nullopt;
   }
 };
@@ -188,7 +199,12 @@ std::optional<int> ParseSetDeltaTimeRequest(const std::string& msg) {
     }
     int time_delta = boost::json::value_to<int>(jv.as_object().at(REQUEST_TIME_DELTA));
     return time_delta;
-  } catch (...) {
+  } catch (const boost::json::system_error& e) {
+    std::cerr << "JSON exception: " << e.what() << " (Error code: " << e.code() << ")"
+              << std::endl;
+    return std::nullopt;
+  } catch (const std::exception& e) {
+    std::cerr << "General exception: " << e.what() << std::endl;
     return std::nullopt;
   }
 };

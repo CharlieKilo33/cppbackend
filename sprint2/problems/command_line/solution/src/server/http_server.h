@@ -1,11 +1,11 @@
 ﻿#pragma once
-#include "../logger/logger.h"
-#include "../other/sdk.h"
-
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
+
+#include "../logger/logger.h"
+#include "../other/sdk.h"
 
 namespace http_server {
 
@@ -23,15 +23,7 @@ class SessionBase {
  public:
   void Run();
 
-  const std::string& GetRemoteIp() {
-    static std::string remote_ip;
-    try {
-      auto temp = stream_.socket().remote_endpoint().address().to_string();
-      remote_ip = temp;
-    } catch (...) {
-    }
-    return remote_ip;
-  };
+  const std::string& GetRemoteIp();
 
  protected:
   using HttpRequest = http::request<http::string_body>;
@@ -63,14 +55,9 @@ class SessionBase {
         });
   }
 
-  void SetReqRecieveTime(const boost::posix_time::ptime& reqTime) {
-    reqRecieveTime_ = reqTime;
-  }
+  void SetReqRecieveTime(const boost::posix_time::ptime& reqTime);
 
-  long GetDurReceivedRequest(const boost::posix_time::ptime& currTime) {
-    boost::posix_time::time_duration dur = currTime - reqRecieveTime_;
-    return dur.total_milliseconds();
-  }
+  int64_t GetDurReceivedRequest(const boost::posix_time::ptime& currTime);
 
  private:
   void Read();

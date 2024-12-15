@@ -26,6 +26,18 @@ void SessionBase::Read() {
                    beast::bind_front_handler(&SessionBase::OnRead, GetSharedThis()));
 }
 
+const std::string& SessionBase::GetRemoteIp() {
+  static std::string remote_ip;
+  try {
+    auto temp = stream_.socket().remote_endpoint().address().to_string();
+    remote_ip = temp;
+  } catch (const boost::system::system_error& e) {
+    BOOST_LOG_TRIVIAL(error) << logger::CreateLogMessage(
+        "error"sv, logger::ExceptionLog(0, e.what(), "Remote Ip Error"sv));
+  }
+  return remote_ip;
+};
+
 void SessionBase::OnRead(beast::error_code ec, [[maybe_unused]] std::size_t bytes_read) {
   using namespace std::literals;
   if (ec == http::error::end_of_stream) {
@@ -38,8 +50,9 @@ void SessionBase::OnRead(beast::error_code ec, [[maybe_unused]] std::size_t byte
 }
 
 void SessionBase::Close() {
-  beast::error_code ec;
-  stream_.socket().shutdown(tcp::socket::shutdown_send, ec);
+  BOOST_LOG_TRIVIAL(info) << logger::CreateLogMessage(
+      "info"sv, logger::ExceptionLog(0, "Client connection closed", ""));
+  stream_.socket().shutdown(tcp::socket::shutdown_send);
 }
 
 void SessionBase::OnWrite(bool close, beast::error_code ec,
@@ -53,6 +66,15 @@ void SessionBase::OnWrite(bool close, beast::error_code ec,
   }
 
   Read();
+}
+
+void SessionBase::SetReqRecieveTime(const boost::posix_time::ptime& reqTime) {
+  reqRecieveTime_ = reqTime;
+}
+
+int64_t SessionBase::GetDurReceivedRequest(const boost::posix_time::ptime& currTime) {
+  boost::posix_time::time_duration dur = currTime - reqRecieveTime_;
+  return dur.total_milliseconds();
 }
 
 }  // namespace http_server

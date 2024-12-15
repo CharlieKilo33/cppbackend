@@ -41,7 +41,11 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
     double dog_speed =
         boost::json::value_to<double>(jsonVal.as_object().at(model::DEFAULT_DOG_SPEED));
     game.SetInitDogSpeed(dog_speed);
-  } catch (...) {
+  } catch (const boost::json::system_error& e) {
+    std::cerr << "JSON exception: " << e.what() << " (Error code: " << e.code() << ")"
+              << std::endl;
+  } catch (const std::exception& e) {
+    std::cerr << "General exception: " << e.what() << std::endl;
   }
   return game;
 };
