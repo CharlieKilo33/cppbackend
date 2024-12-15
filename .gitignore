@@ -726,7 +726,9 @@ sprint3/problems/flamegraph/solution/graph.svg
 */**/build/
 **/.pytest_cache/
 .venv
+.vscode
 # XML Results
 *.xml
 
 **/.DS_Store
+.clang-format

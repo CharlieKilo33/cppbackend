@@ -18,10 +18,8 @@ using namespace std::literals;
 using Timer = net::steady_timer;
 
 class Hamburger {
-public:
-    [[nodiscard]] bool IsCutletRoasted() const {
-        return cutlet_roasted_;
-    }
+   public:
+    [[nodiscard]] bool IsCutletRoasted() const { return cutlet_roasted_; }
     void SetCutletRoasted() {
         if (IsCutletRoasted()) {  // Котлету можно жарить только один раз
             throw std::logic_error("Cutlet has been roasted already"s);
@@ -29,27 +27,25 @@ public:
         cutlet_roasted_ = true;
     }
 
-    [[nodiscard]] bool HasOnion() const {
-        return has_onion_;
-    }
+    [[nodiscard]] bool HasOnion() const { return has_onion_; }
     // Добавляем лук
     void AddOnion() {
         if (IsPacked()) {  // Если гамбургер упакован, класть лук в него нельзя
             throw std::logic_error("Hamburger has been packed already"s);
         }
-        AssureCutletRoasted();  // Лук разрешается класть лишь после прожаривания котлеты
+        AssureCutletRoasted();  // Лук разрешается класть лишь после
+                                // прожаривания котлеты
         has_onion_ = true;
     }
 
-    [[nodiscard]] bool IsPacked() const {
-        return is_packed_;
-    }
+    [[nodiscard]] bool IsPacked() const { return is_packed_; }
     void Pack() {
-        AssureCutletRoasted();  // Нельзя упаковывать гамбургер, если котлета не прожарена
+        AssureCutletRoasted();  // Нельзя упаковывать гамбургер, если котлета не
+                                // прожарена
         is_packed_ = true;
     }
 
-private:
+   private:
     // Убеждаемся, что котлета прожарена
     void AssureCutletRoasted() const {
         if (!cutlet_roasted_) {
@@ -63,36 +59,35 @@ private:
 };
 
 std::ostream& operator<<(std::ostream& os, const Hamburger& h) {
-    return os << "Hamburger: "sv << (h.IsCutletRoasted() ? "roasted cutlet"sv : " raw cutlet"sv)
+    return os << "Hamburger: "sv
+              << (h.IsCutletRoasted() ? "roasted cutlet"sv : " raw cutlet"sv)
               << (h.HasOnion() ? ", onion"sv : ""sv)
               << (h.IsPacked() ? ", packed"sv : ", not packed"sv);
 }
 
 class Logger {
-public:
-    explicit Logger(std::string id)
-        : id_(std::move(id)) {
-    }
+   public:
+    explicit Logger(std::string id) : id_(std::move(id)) {}
 
     void LogMessage(std::string_view message) const {
         std::osyncstream os{std::cout};
-        os << id_ << "> ["sv << duration<double>(steady_clock::now() - start_time_).count()
+        os << id_ << "> ["sv
+           << duration<double>(steady_clock::now() - start_time_).count()
            << "s] "sv << message << std::endl;
     }
 
-private:
+   private:
     std::string id_;
     steady_clock::time_point start_time_{steady_clock::now()};
 };
 
 // Функция, которая будет вызвана по окончании обработки заказа
-using OrderHandler = std::function<void(sys::error_code ec, int id, Hamburger* hamburger)>;
+using OrderHandler =
+    std::function<void(sys::error_code ec, int id, Hamburger* hamburger)>;
 
 class Restaurant {
-public:
-    explicit Restaurant(net::io_context& io)
-        : io_(io) {
-    }
+   public:
+    explicit Restaurant(net::io_context& io) : io_(io) {}
 
     int MakeHamburger(bool with_onion, OrderHandler handler) {
         const int order_id = ++next_order_id_;
@@ -100,7 +95,7 @@ public:
         return order_id;
     }
 
-private:
+   private:
     net::io_context& io_;
     int next_order_id_ = 0;
 };
